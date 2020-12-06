@@ -27,12 +27,12 @@ type SQSReceiverAdapter struct {
 	queueName         *string
 	waitTimeSecond    *int64
 	visibilityTimeout *int64
-	client            SQSClient
+	client            *sqs.SQS
 	messageHandler    MessageHandler
 }
 
 // NewSQSReceiverAdapter is a constructor.
-func NewSQSReceiverAdapter(signal chan os.Signal, client SQSClient, queueName string, WaitTimeSecond, VisibilityTimeout int64, messageHandler MessageHandler) Receiver {
+func NewSQSReceiverAdapter(signal chan os.Signal, client *sqs.SQS, queueName string, WaitTimeSecond, VisibilityTimeout int64, messageHandler MessageHandler) Receiver {
 	return &SQSReceiverAdapter{
 		signal:            signal,
 		queueName:         &queueName,
