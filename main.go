@@ -25,12 +25,13 @@ func (h myEventHandler) Handle(data interface{}) error {
 		return err
 	}
 
-	fmt.Printf("Incoming Message: %s", *message.Body)
+	fmt.Printf("Incoming Message: %s\n", *message.Body)
 	return nil
 }
 
 func main() {
-	queueName := "first-queue"
+	logger := logrus.New()
+	queueName := "demo-queue"
 	region := "ap-southeast-1"
 	sess := session.Must(session.NewSession(&aws.Config{
 		Credentials: credentials.NewEnvCredentials(),
@@ -40,14 +41,17 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, os.Kill)
 
+	eventHandler := myEventHandler{logger: logger}
+
 	sqsClient := sqs.New(sess)
 	receiver := event.NewSQSReceiverAdapter(
 		signalChan,
+		logger,
 		sqsClient,
 		queueName,
 		20,
 		30,
-		new(myEventHandler),
+		eventHandler,
 	)
 
 	receiver.Receive()

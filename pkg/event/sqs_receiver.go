@@ -3,6 +3,8 @@ package event
 import (
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -27,17 +29,19 @@ type SQSReceiverAdapter struct {
 	queueName         *string
 	waitTimeSecond    *int64
 	visibilityTimeout *int64
-	client            *sqs.SQS
+	client            SQSClient
 	messageHandler    MessageHandler
 }
 
 // NewSQSReceiverAdapter is a constructor.
-func NewSQSReceiverAdapter(signal chan os.Signal, client *sqs.SQS, queueName string, WaitTimeSecond, VisibilityTimeout int64, messageHandler MessageHandler) Receiver {
+func NewSQSReceiverAdapter(signal chan os.Signal, logger *logrus.Logger, client SQSClient, queueName string, WaitTimeSecond, VisibilityTimeout int64, messageHandler MessageHandler) Receiver {
 	return &SQSReceiverAdapter{
+		logger:            logger,
 		signal:            signal,
 		queueName:         &queueName,
 		waitTimeSecond:    &WaitTimeSecond,
 		visibilityTimeout: &VisibilityTimeout,
+		client:            client,
 		messageHandler:    messageHandler,
 	}
 }
@@ -56,8 +60,10 @@ func (r SQSReceiverAdapter) Receive() {
 			run = false
 		default:
 			if err := r.poll(queueURL); err != nil {
-				if err.Error() == sqs.ErrCodeQueueDoesNotExist || err.Error() == sqs.ErrCodeQueueDeletedRecently {
-					run = false
+				if awsErr, ok := err.(awserr.Error); ok {
+					if awsErr.Code() == sqs.ErrCodeQueueDoesNotExist || awsErr.Code() == sqs.ErrCodeQueueDeletedRecently {
+						run = false
+					}
 				}
 			}
 		}
